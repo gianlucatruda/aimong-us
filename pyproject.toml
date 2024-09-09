@@ -1,0 +1,10 @@
+[project]
+name = "aimong-us"
+version = "0.1.0"
+description = "Reverse Turing Test game"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=1.44.1",
+    "python-dotenv>=1.0.1",
+]

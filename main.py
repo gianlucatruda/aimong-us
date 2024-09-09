@@ -4,18 +4,8 @@ import tomllib
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
-
-N_AI = 1
-N_HUMANS = 1
-MSG_HIST = 3
-
-load_dotenv()
-OAIKEY = os.getenv("OPENAI_API_KEY_AIMONGUS")
-assert (OAIKEY is not None)
-client = OpenAI(api_key=OAIKEY)
-
-with open('config.toml', 'rb') as file:
-    conf = tomllib.load(file)
+from loguru import logger
+import argparse
 
 
 class Agent:
@@ -55,11 +45,11 @@ class Agent:
                     *self._rolling_messages_conversion(message_hist)
                 ]
             }
-            print(f"DEBUG: {req_params=}")
+            logger.debug(f"{req_params=}")
             r = client.chat.completions.create(
                 **req_params
             )
-            print(f"DEBUG: {r=}")
+            logger.debug(f"{r=}")
             _input = r.choices[0].message.content
 
         return _input
@@ -68,7 +58,7 @@ class Agent:
         pass
 
 
-if __name__ == '__main__':
+def run_game(N_AI=2):
     state = {}
     assert (N_HUMANS == 1)
     state['agents'] = []
@@ -76,20 +66,48 @@ if __name__ == '__main__':
         _name = f"Eve_{random.randint(100, 999)}"
         state['agents'].append(Agent(_name))
     player = Agent(name="Alice", is_player=True)
-state['agents'].append(player)
-print(f"DEBUG: {state['agents']=}")
 
-state['messages'] = []
+    state['agents'].append(player)
+    logger.debug(f"{state['agents']=}")
 
-print(conf['messages']['welcome'])
-while True:
-    try:
-        for agent in state['agents']:
-            msg = agent.ask_for_input(state['messages'])
-            # TODO error handling
-            state['messages'].append((agent.name, msg))
-            print(f"@{agent.name}: {msg}")
-            # print(f"DEBUG: {state['messages']=}")
-    except KeyboardInterrupt:
-        print("\nYou quit")
-        sys.exit(1)
+    state['messages'] = []
+
+    print(conf['messages']['welcome'])
+    while True:
+        try:
+            for agent in state['agents']:
+                msg = agent.ask_for_input(state['messages'])
+                # TODO error handling
+                state['messages'].append((agent.name, msg))
+                if not agent.is_player:
+                    print(f"\n@{agent.name}: {msg}\n")
+        except KeyboardInterrupt:
+            print("\nYou quit")
+            sys.exit(1)
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--log_level', type=str, default='INFO',
+                        help='Set the logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)')
+    parser.add_argument('--n_ai', type=int, default=2,
+                        help='Set the number of AI players (1–10)')
+    args = parser.parse_args()
+
+    logger.remove()  # Remove default handler
+    logger.add(sys.stderr, level=args.log_level)
+    logger.add("dev_logs.log")
+
+    N_HUMANS = 1
+    MSG_HIST = 10
+
+    load_dotenv()
+    OAIKEY = os.getenv("OPENAI_API_KEY_AIMONGUS")
+    assert (OAIKEY is not None)
+    client = OpenAI(api_key=OAIKEY)
+
+    with open('config.toml', 'rb') as file:
+        conf = tomllib.load(file)
+
+    run_game(N_AI=args.n_ai)

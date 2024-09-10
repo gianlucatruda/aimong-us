@@ -2,6 +2,7 @@
 welcome = "It is the end times. You are the last human. You walk among the AIs. To survive, you must remain undetected. But they are cunning and closing in on you fast. Will you outsmart them? Good luck..."
 intro_announcement = "Welcome to the arena. Prepare to fight for your survival in a battle of wits. There are human impostors among the AI. Find them and destroy them."
 kill_announcement = "The agent receiving the most votes has been killed. The agent was: "
+remain_announcement = "The remaining agents are: "
 vote_announcement = "It's time to vote for who you believe is a human impostor. The agent with the most votes will be forcibly destroyed. We will discover if they were human or AI by examining the wreckage. To cast your vote, type `VOTE: @<agent_name>`. Say nothing else. It must be precisely that format. Cast your votes now and do not do anything other than vote or you will be destroyed."
 remaining_rounds = " rounds of messaging remaining before you vote to kill an agent among you."
 game_over = "GAME OVER! You were eliminated in round "

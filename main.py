@@ -7,6 +7,8 @@ import os
 from loguru import logger
 import argparse
 from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Prompt
 
 
 class Agent:
@@ -39,9 +41,10 @@ class Agent:
         return _msgs
 
     def get_next_message(self, state):
-        _input = None
+        _msg = None
         if self.is_player:
-            _input = input(f"You (@{self.name}) > ")
+            _msg = console.input(
+                f"[dim]You[/dim] ([bold blue]@{self.name}[/]) > ")
         else:
             req_params = {
                 "model": self.model_params['model'],
@@ -61,13 +64,13 @@ class Agent:
                 **req_params
             )
             logger.debug(f"{r=}")
-            _input = r.choices[0].message.content
+            _msg = r.choices[0].message.content
 
-            console.print(f"[bold]@{self.name}:[/bold] {_input}")
+            console.print(f"[bold]@[u]{self.name}[/u]:[/bold] [dim]{_msg}")
 
-        state.messages.append((self.name, _input))
+        state.messages.append((self.name, _msg))
 
-        return _input
+        return _msg
 
 
 class GameState:
@@ -91,14 +94,15 @@ class GameConfig:
 
 
 def admin_message(m, state):
-    style = "bold yellow"
-    console.print("ADMINISTRATOR: " + m, style=style)
+    style = "bold cyan"
+    console.print(
+        "\n[underline]ADMINISTRATOR[/underline]: " + m + "\n", style=style)
     state.messages.append(("ADMINISTRATOR", m))
 
 
 def message_to_player(m):
     style = "bold italic green"
-    console.print(m, style=style)
+    console.print(Panel.fit(m, style=style))
 
 
 def call_vote(state, conf):
@@ -126,7 +130,6 @@ def call_vote(state, conf):
 
 def main_game_loop(state, conf, kill_counter):
     round = 1
-    can_win = True
     while len(state.agents) > 2:
         logger.debug(f"Resetting kill countdown to {kill_counter}")
         cnt = kill_counter
@@ -143,8 +146,8 @@ def main_game_loop(state, conf, kill_counter):
             message_to_player(conf.text['game_over'] + str(round))
             sys.exit(1)
 
-        _m = conf.text['kill_announcement']
-        _m += f"{_killed}. {len(state.agents)} agents remain."
+        _m = conf.text['kill_announcement'] + f"{_killed}\n"
+        _m += conf.text['remain_announcement'] + str(list(state.agents.keys()))
         admin_message(_m, state)
 
         round += 1

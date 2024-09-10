@@ -93,9 +93,12 @@ def call_vote(state, conf):
 
         try:
             v = msg.split("VOTE:")[1].split("@")[1]
+        except IndexError:
+            logger.warning(f"Spoiled vote: {msg}")
+        try:
             _votes[v] += 1
-        except:
-            logger.warning(f"Bad vote: {msg}")
+        except KeyError:
+            logger.warning(f"Invalid vote: {msg}")
 
     logger.info(f"{_votes=}")
 
@@ -113,24 +116,17 @@ def main_game_loop(state, conf, kill_counter):
         while cnt > 0:
             _m = f"{cnt} rounds left until you vote to kill an agent among you."
             admin_message(_m, state)
-            try:
-                for _, agent in state.agents.items():
-                    msg = agent.ask_for_input(state, conf)
-                    if not agent.is_player:
-                        print(f"\n@{agent.name}: {msg}\n")
-            except KeyboardInterrupt:
-                logger.warning("\nYou quit")
-                sys.exit(1)
+            for _, agent in state.agents.items():
+                msg = agent.ask_for_input(state, conf)
+                if not agent.is_player:
+                    print(f"\n@{agent.name}: {msg}\n")
             cnt -= 1
 
         _killed = call_vote(state, conf)
 
         if _killed.is_player:
-            _r = input(
-                f"\nGAME OVER: You were eliminated in round {round}. Type `continue` to watch it play out or hit ctrl+c to exit\n> ")
-            can_win = False
-            if _r.lower() != 'continue':
-                sys.exit(1)
+            print(f"\nGAME OVER: You were eliminated in round {round}.")
+            sys.exit(1)
 
         _m = conf.messages['kill_announcement']
         _m += f"{_killed}. {len(state.agents)} agents remain."
@@ -138,8 +134,7 @@ def main_game_loop(state, conf, kill_counter):
 
         round += 1
 
-    if can_win:
-        admin_message(f"You won in {round} rounds!", state)
+    print(f"CONGRATULATIONS! You won in {round} rounds!")
 
 
 def run_game(num_ai=2, kill_counter=3):
@@ -150,10 +145,11 @@ def run_game(num_ai=2, kill_counter=3):
     print(conf.messages['welcome'])
 
     # TODO better names (and in conf)
-    _names_pool = ["Eve", "Frank", "Gertrude", "Harriet", "Irene", "John"]
+    _names_pool = ["Eve", "Frank", "Gertrude",
+                   "Harriet", "Irene", "John", "Kelly"]
     _agent_names = []
     for i in range(num_ai):
-        _name = _names_pool.pop()
+        _name = _names_pool.pop(0)
         state.agents[_name] = Agent(_name)
     state.agents["Alice"] = Agent("Alice", is_player=True)
 
@@ -170,14 +166,14 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_level', type=str, default='WARNING',
-                        help='Set the logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)')
+                        help='Logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     parser.add_argument('--n_ai', type=int, default=2,
-                        help='Set the number of AI players (1–10)')
-    parser.add_argument('--kill_count', type=int, default=3,
-                        help='Set the number of messages before kill vote (1–10)')
+                        help='Number of AI players (1–5)')
+    parser.add_argument('--kill_count', type=int, default=2,
+                        help='Number of message rounds before vote (1–5)')
     args = parser.parse_args()
 
-    logger.remove()  # Remove default handler
+    logger.remove()
     logger.add(sys.stderr, level=args.log_level)
     logger.add("dev_logs.log")
 

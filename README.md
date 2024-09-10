@@ -286,7 +286,9 @@ you will be destroyed.
 
 @Harriet_55: VOTE: @Alice_42
 
-@Alice_42> VOTE: shit... ```
+@Alice_42> VOTE: shit...
+
+```
 
 ### Example run (win)
 

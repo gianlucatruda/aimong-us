@@ -31,19 +31,19 @@ class Agent:
             _msgs.append(_out)
         return _msgs
 
-    def ask_for_input(self, message_hist):
+    def ask_for_input(self, message_hist, conf):
         _input = None
         if self.is_player:
             _input = input(f"@{self.name}> ")
             # TODO error handling
         else:
             req_params = {
-                "model": conf['model_params']['model'],
+                "model": conf.model_params['model'],
                 "messages": [
                     {"role": "system", "content": "Your name is " + self.name},
                     {"role": "assistant", "content": "My name is " +
                         self.name + " and I am an AI."},
-                    {"role": "system", "content": conf['prompts']['system']},
+                    {"role": "system", "content": conf.prompts['system']},
                     *self._rolling_messages_conversion(message_hist)
                 ]
             }
@@ -57,45 +57,62 @@ class Agent:
         return _input
 
 
+class GameState:
+    def __init__(self):
+        self.messages = []
+        self.agents = []
+
+
+class GameConfig:
+    def __init__(self, fname):
+        self._fname = fname
+        with open(fname, 'rb') as file:
+            conf = tomllib.load(file)
+        self.messages = conf['messages']
+        self.prompts = conf['prompts']
+        self.model_params = conf['model_params']
+
+
 def admin_message(m, state):
     print("\nADMINISTRATOR: " + m)
-    state['messages'].append(("ADMINISTRATOR", m))
+    state.messages.append(("ADMINISTRATOR", m))
 
 
-def run_game(N_AI=2, KILL_CNT=3):
-    print(conf['messages']['welcome'])
+def run_game(num_ai=2, kill_counter=3):
 
-    state = {}
-    assert (N_HUMANS == 1)
-    state['agents'] = []
+    state = GameState()
+    conf = GameConfig('config.toml')
+
+    print(conf.messages['welcome'])
+
+    # TODO better names
     _names = ["Eve", "Frank", "Gertrude", "Harriet", "Irene", "John"]
-    for i in range(N_AI):
-        _name = f"{_names.pop()}_{random.randint(10, 99)}"
-        state['agents'].append(Agent(_name))
-    player = Agent(name="Alice_42", is_player=True)
+    for i in range(num_ai):
+        _name = _names.pop()
+        state.agents.append(Agent(_name))
+    player = Agent("Alice", is_player=True)
 
-    state['agents'].append(player)
-    logger.debug(f"{state['agents']=}")
-    state['messages'] = []
+    state.agents.append(player)
+    logger.debug(f"{state.agents=}")
+    state.messages = []
 
-    _agent_names = [a.name for a in state['agents']]
-    _m = conf['messages']['intro_announcement']
+    _agent_names = [a.name for a in state.agents]
+    _m = conf.messages['intro_announcement']
     _m += f" The agents in the arena are: {_agent_names}"
     admin_message(_m, state)
 
     round = 1
     can_win = True
-    while len(state['agents']) > 2:
-        logger.debug(f"Resetting kill countdown to {KILL_CNT}")
-        cnt = KILL_CNT
+    while len(state.agents) > 2:
+        logger.debug(f"Resetting kill countdown to {kill_counter}")
+        cnt = kill_counter
         while cnt > 0:
             _m = f"{cnt} rounds left until you vote to kill an agent among you."
             admin_message(_m, state)
             try:
-                for agent in state['agents']:
-                    msg = agent.ask_for_input(state['messages'])
-                    # TODO error handling
-                    state['messages'].append((agent.name, msg))
+                for agent in state.agents:
+                    msg = agent.ask_for_input(state.messages, conf)
+                    state.messages.append((agent.name, msg))
                     if not agent.is_player:
                         print(f"\n@{agent.name}: {msg}\n")
             except KeyboardInterrupt:
@@ -103,14 +120,14 @@ def run_game(N_AI=2, KILL_CNT=3):
                 sys.exit(1)
             cnt -= 1
         # TODO implement actual vote()
-        _m = conf['messages']['vote_announcement']
+        _m = conf.messages['vote_announcement']
         admin_message(_m, state)
-        _votes = {_a.name: 0 for _a in state['agents']}
+        _votes = {_a.name: 0 for _a in state.agents}
         try:
-            for agent in state['agents']:
-                msg = agent.ask_for_input(state['messages'])
+            for agent in state.agents:
+                msg = agent.ask_for_input(state.messages, conf)
                 # TODO error handling
-                state['messages'].append((agent.name, msg))
+                state.messages.append((agent.name, msg))
                 if not agent.is_player:
                     print(f"\n@{agent.name}: {msg}\n")
                 if "VOTE" in msg:
@@ -128,12 +145,12 @@ def run_game(N_AI=2, KILL_CNT=3):
         _killed = None
         for (k, v) in _votes.items():
             if v == max(_votes.values()):
-                for i, _a in enumerate(state['agents']):
+                for i, _a in enumerate(state.agents):
                     if _a.name == k:
-                        _killed = state['agents'].pop(i)
+                        _killed = state.agents.pop(i)
                         break
         if _killed is None:
-            _killed = state['agents'].pop(0)
+            _killed = state.agents.pop(0)
             logger.warn("Vote didn't work, so popped from list")
 
         if _killed.is_player:
@@ -143,10 +160,9 @@ def run_game(N_AI=2, KILL_CNT=3):
             if _r.lower() != 'continue':
                 sys.exit(1)
 
-        _m = conf['messages']['kill_announcement'] + \
-            f"{_killed}. {len(state['agents'])} agents remain."
-        print(_m)
-        state['messages'].append(("ADMINISTRATOR", _m))
+        _m = conf.messages['kill_announcement']
+        _m += f"{_killed}. {len(state.agents)} agents remain."
+        admin_message(_m, state)
 
         round += 1
 
@@ -169,7 +185,6 @@ if __name__ == '__main__':
     logger.add(sys.stderr, level=args.log_level)
     logger.add("dev_logs.log")
 
-    N_HUMANS = 1
     MSG_HIST = 10
 
     load_dotenv()
@@ -177,7 +192,4 @@ if __name__ == '__main__':
     assert (OAIKEY is not None)
     client = OpenAI(api_key=OAIKEY)
 
-    with open('config.toml', 'rb') as file:
-        conf = tomllib.load(file)
-
-    run_game(N_AI=args.n_ai, KILL_CNT=args.kill_count)
+    run_game(num_ai=args.n_ai, kill_counter=args.kill_count)

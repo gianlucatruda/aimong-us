@@ -136,16 +136,17 @@ def run_game(N_AI=2, KILL_CNT=3):
             _killed = state['agents'].pop(0)
             logger.warn("Vote didn't work, so popped from list")
 
-        _m = conf['messages']['kill_announcement'] + \
-            f"{_killed.name} (AI). {len(state['agents'])} agents remain."
-        print(_m)
-        state['messages'].append(("ADMINISTRATOR", _m))
-
         if _killed.is_player:
             _r = input(
                 f"\nGAME OVER: You were eliminated in round {round}. Type `continue` to watch it play out or hit ctrl+c to exit\n> ")
             if _r.lower() != 'continue':
                 sys.exit(1)
+
+        _m = conf['messages']['kill_announcement'] + \
+            f"{_killed}. {len(state['agents'])} agents remain."
+        print(_m)
+        state['messages'].append(("ADMINISTRATOR", _m))
+
         round += 1
 
 

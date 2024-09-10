@@ -8,4 +8,5 @@ dependencies = [
     "loguru>=0.7.2",
     "openai>=1.44.1",
     "python-dotenv>=1.0.1",
+    "rich>=13.8.1",
 ]

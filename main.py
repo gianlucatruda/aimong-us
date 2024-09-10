@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import os
 from loguru import logger
 import argparse
+from rich.console import Console
 
 
 class Agent:
@@ -37,7 +38,7 @@ class Agent:
             _msgs.append(_out)
         return _msgs
 
-    def ask_for_input(self, state):
+    def get_next_message(self, state):
         _input = None
         if self.is_player:
             _input = input(f"You (@{self.name}) > ")
@@ -61,6 +62,8 @@ class Agent:
             )
             logger.debug(f"{r=}")
             _input = r.choices[0].message.content
+
+            console.print(f"[bold]@{self.name}:[/bold] {_input}")
 
         state.messages.append((self.name, _input))
 
@@ -88,8 +91,14 @@ class GameConfig:
 
 
 def admin_message(m, state):
-    print("\nADMINISTRATOR: " + m)
+    style = "bold yellow"
+    console.print("ADMINISTRATOR: " + m, style=style)
     state.messages.append(("ADMINISTRATOR", m))
+
+
+def message_to_player(m):
+    style = "bold italic green"
+    console.print(m, style=style)
 
 
 def call_vote(state, conf):
@@ -98,11 +107,7 @@ def call_vote(state, conf):
 
     _votes = {_n: 0 for _n in state.agents.keys()}
     for _, agent in state.agents.items():
-        msg = agent.ask_for_input(state)
-
-        if not agent.is_player:
-            print(f"\n@{agent.name}: {msg}\n")
-
+        msg = agent.get_next_message(state)
         try:
             v = msg.split("VOTE:")[1].split("@")[1].split()[0]
             try:
@@ -129,15 +134,13 @@ def main_game_loop(state, conf, kill_counter):
             _m = str(cnt) + conf.text['remaining_rounds']
             admin_message(_m, state)
             for _, agent in state.agents.items():
-                msg = agent.ask_for_input(state)
-                if not agent.is_player:
-                    print(f"\n@{agent.name}: {msg}\n")
+                _ = agent.get_next_message(state)
             cnt -= 1
 
         _killed = call_vote(state, conf)
 
         if _killed.is_player:
-            print(conf.text['game_over'] + str(round))
+            message_to_player(conf.text['game_over'] + str(round))
             sys.exit(1)
 
         _m = conf.text['kill_announcement']
@@ -146,7 +149,7 @@ def main_game_loop(state, conf, kill_counter):
 
         round += 1
 
-    print(conf.text['win'] + str(round))
+    message_to_player(conf.text['win'] + str(round))
 
 
 def run_game(num_ai=2, kill_counter=3):
@@ -155,7 +158,7 @@ def run_game(num_ai=2, kill_counter=3):
     conf = GameConfig('config.toml')
     logger.debug(conf)
 
-    print(conf.text['welcome'])
+    message_to_player(conf.text['welcome'])
 
     # TODO better names (and in conf)
     _names_pool = ["Eve", "Frank", "Gertrude",
@@ -189,8 +192,9 @@ if __name__ == '__main__':
     logger.remove()
     logger.add(sys.stderr, level=args.log_level)
     logger.add("dev_logs.log")
+    console = Console(color_system="auto")
 
-    MSG_HIST = 10
+    MSG_HIST = 20
 
     load_dotenv()
     OAIKEY = os.getenv("OPENAI_API_KEY_AIMONGUS")

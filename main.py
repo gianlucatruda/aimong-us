@@ -56,10 +56,6 @@ class Agent:
 
         return _input
 
-    def notify_of_message(self, m):
-        pass
-
-
 def run_game(N_AI=2, KILL_CNT=3):
     print(conf['messages']['welcome'])
 
@@ -148,6 +144,8 @@ def run_game(N_AI=2, KILL_CNT=3):
         state['messages'].append(("ADMINISTRATOR", _m))
 
         round += 1
+
+    print(f"\n\nCONGRATULATIONS! You outsmarted the AI and avoided detection for {round} rounds!")
 
 
 if __name__ == '__main__':

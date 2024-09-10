@@ -40,7 +40,9 @@ class Agent:
             req_params = {
                 "model": conf['model_params']['model'],
                 "messages": [
-                    {"role": "system", "content": f"Your name is {self.name}."},
+                    {"role": "system", "content": "Your name is " + self.name},
+                    {"role": "assistant", "content": "My name is " +
+                        self.name + " and I am an AI."},
                     {"role": "system", "content": conf['prompts']['system']},
                     *self._rolling_messages_conversion(message_hist)
                 ]
@@ -80,6 +82,7 @@ def run_game(N_AI=2, KILL_CNT=3):
     print("\nADMINISTRATOR: " + _m)
     state['messages'].append(("ADMINISTRATOR", _m))
 
+    round = 1
     while len(state['agents']) > 2:
         logger.debug(f"Resetting kill countdown to {KILL_CNT}")
         cnt = KILL_CNT
@@ -128,6 +131,7 @@ def run_game(N_AI=2, KILL_CNT=3):
                 for i, _a in enumerate(state['agents']):
                     if _a.name == k:
                         _killed = state['agents'].pop(i)
+                        break
         if _killed is None:
             _killed = state['agents'].pop(0)
             logger.warn("Vote didn't work, so popped from list")
@@ -139,9 +143,10 @@ def run_game(N_AI=2, KILL_CNT=3):
 
         if _killed.is_player:
             _r = input(
-                "\nGAME OVER: You were eliminated. Type `continue` to watch it play out or hit ctrl+c to exit\n> ")
+                f"\nGAME OVER: You were eliminated in round {round}. Type `continue` to watch it play out or hit ctrl+c to exit\n> ")
             if _r.lower() != 'continue':
                 sys.exit(1)
+        round += 1
 
 
 if __name__ == '__main__':
@@ -160,7 +165,7 @@ if __name__ == '__main__':
     logger.add("dev_logs.log")
 
     N_HUMANS = 1
-    MSG_HIST = 10
+    MSG_HIST = 50
 
     load_dotenv()
     OAIKEY = os.getenv("OPENAI_API_KEY_AIMONGUS")

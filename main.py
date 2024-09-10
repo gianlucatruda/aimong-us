@@ -56,6 +56,12 @@ class Agent:
 
         return _input
 
+
+def admin_message(m, state):
+    print("\nADMINISTRATOR: " + m)
+    state['messages'].append(("ADMINISTRATOR", m))
+
+
 def run_game(N_AI=2, KILL_CNT=3):
     print(conf['messages']['welcome'])
 
@@ -72,20 +78,19 @@ def run_game(N_AI=2, KILL_CNT=3):
     logger.debug(f"{state['agents']=}")
     state['messages'] = []
 
-    # TODO refactor this pattern to a function
-    _m = conf['messages']['intro_announcement'] + \
-        f" The agents in the arena are: {[a.name for a in state['agents']]}\n"
-    print("\nADMINISTRATOR: " + _m)
-    state['messages'].append(("ADMINISTRATOR", _m))
+    _agent_names = [a.name for a in state['agents']]
+    _m = conf['messages']['intro_announcement']
+    _m += f" The agents in the arena are: {_agent_names}"
+    admin_message(_m, state)
 
     round = 1
+    can_win = True
     while len(state['agents']) > 2:
         logger.debug(f"Resetting kill countdown to {KILL_CNT}")
         cnt = KILL_CNT
         while cnt > 0:
             _m = f"{cnt} rounds left until you vote to kill an agent among you."
-            print("\nADMINISTRATOR: " + _m)
-            state['messages'].append(("ADMINISTRATOR", _m))
+            admin_message(_m, state)
             try:
                 for agent in state['agents']:
                     msg = agent.ask_for_input(state['messages'])
@@ -94,13 +99,12 @@ def run_game(N_AI=2, KILL_CNT=3):
                     if not agent.is_player:
                         print(f"\n@{agent.name}: {msg}\n")
             except KeyboardInterrupt:
-                print("\nYou quit")
+                logger.warn("\nYou quit")
                 sys.exit(1)
             cnt -= 1
         # TODO implement actual vote()
         _m = conf['messages']['vote_announcement']
-        print("\nADMINISTRATOR: " + _m)
-        state['messages'].append(("ADMINISTRATOR", _m))
+        admin_message(_m, state)
         _votes = {_a.name: 0 for _a in state['agents']}
         try:
             for agent in state['agents']:
@@ -114,7 +118,7 @@ def run_game(N_AI=2, KILL_CNT=3):
                         if k in msg:
                             _votes[k] += 1
         except KeyboardInterrupt:
-            print("\nYou quit")
+            logger.warn("\nYou quit")
             sys.exit(1)
 
         logger.info(f"{_votes=}")
@@ -135,6 +139,7 @@ def run_game(N_AI=2, KILL_CNT=3):
         if _killed.is_player:
             _r = input(
                 f"\nGAME OVER: You were eliminated in round {round}. Type `continue` to watch it play out or hit ctrl+c to exit\n> ")
+            can_win = False
             if _r.lower() != 'continue':
                 sys.exit(1)
 
@@ -145,13 +150,14 @@ def run_game(N_AI=2, KILL_CNT=3):
 
         round += 1
 
-    print(f"\n\nCONGRATULATIONS! You outsmarted the AI and avoided detection for {round} rounds!")
+    if can_win:
+        admin_message(f"You won in {round} rounds!", state)
 
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_level', type=str, default='INFO',
+    parser.add_argument('--log_level', type=str, default='WARNING',
                         help='Set the logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     parser.add_argument('--n_ai', type=int, default=2,
                         help='Set the number of AI players (1–10)')
@@ -164,7 +170,7 @@ if __name__ == '__main__':
     logger.add("dev_logs.log")
 
     N_HUMANS = 1
-    MSG_HIST = 50
+    MSG_HIST = 10
 
     load_dotenv()
     OAIKEY = os.getenv("OPENAI_API_KEY_AIMONGUS")

@@ -31,7 +31,7 @@ class Agent:
             _msgs.append(_out)
         return _msgs
 
-    def ask_for_input(self, message_hist, conf):
+    def ask_for_input(self, state, conf):
         _input = None
         if self.is_player:
             _input = input(f"@{self.name}> ")
@@ -44,7 +44,7 @@ class Agent:
                     {"role": "assistant", "content": "My name is " +
                         self.name + " and I am an AI."},
                     {"role": "system", "content": conf.prompts['system']},
-                    *self._rolling_messages_conversion(message_hist)
+                    *self._rolling_messages_conversion(state.messages)
                 ]
             }
             logger.debug(f"{req_params=}")
@@ -54,13 +54,15 @@ class Agent:
             logger.debug(f"{r=}")
             _input = r.choices[0].message.content
 
+        state.messages.append((self.name, _input))
+
         return _input
 
 
 class GameState:
     def __init__(self):
         self.messages = []
-        self.agents = []
+        self.agents = {}
 
 
 class GameConfig:
@@ -78,29 +80,31 @@ def admin_message(m, state):
     state.messages.append(("ADMINISTRATOR", m))
 
 
-def run_game(num_ai=2, kill_counter=3):
-
-    state = GameState()
-    conf = GameConfig('config.toml')
-
-    print(conf.messages['welcome'])
-
-    # TODO better names
-    _names = ["Eve", "Frank", "Gertrude", "Harriet", "Irene", "John"]
-    for i in range(num_ai):
-        _name = _names.pop()
-        state.agents.append(Agent(_name))
-    player = Agent("Alice", is_player=True)
-
-    state.agents.append(player)
-    logger.debug(f"{state.agents=}")
-    state.messages = []
-
-    _agent_names = [a.name for a in state.agents]
-    _m = conf.messages['intro_announcement']
-    _m += f" The agents in the arena are: {_agent_names}"
+def call_vote(state, conf):
+    _m = conf.messages['vote_announcement']
     admin_message(_m, state)
 
+    _votes = {_n: 0 for _n in state.agents.keys()}
+    for _, agent in state.agents.items():
+        msg = agent.ask_for_input(state, conf)
+
+        if not agent.is_player:
+            print(f"\n@{agent.name}: {msg}\n")
+
+        try:
+            v = msg.split("VOTE:")[1].split("@")[1]
+            _votes[v] += 1
+        except:
+            logger.warning(f"Bad vote: {msg}")
+
+    logger.info(f"{_votes=}")
+
+    _name_with_most = max(_votes, key=_votes.get)
+    killed = state.agents.pop(_name_with_most)
+    return killed
+
+
+def main_game_loop(state, conf, kill_counter):
     round = 1
     can_win = True
     while len(state.agents) > 2:
@@ -110,48 +114,16 @@ def run_game(num_ai=2, kill_counter=3):
             _m = f"{cnt} rounds left until you vote to kill an agent among you."
             admin_message(_m, state)
             try:
-                for agent in state.agents:
-                    msg = agent.ask_for_input(state.messages, conf)
-                    state.messages.append((agent.name, msg))
+                for _, agent in state.agents.items():
+                    msg = agent.ask_for_input(state, conf)
                     if not agent.is_player:
                         print(f"\n@{agent.name}: {msg}\n")
             except KeyboardInterrupt:
-                logger.warn("\nYou quit")
+                logger.warning("\nYou quit")
                 sys.exit(1)
             cnt -= 1
-        # TODO implement actual vote()
-        _m = conf.messages['vote_announcement']
-        admin_message(_m, state)
-        _votes = {_a.name: 0 for _a in state.agents}
-        try:
-            for agent in state.agents:
-                msg = agent.ask_for_input(state.messages, conf)
-                # TODO error handling
-                state.messages.append((agent.name, msg))
-                if not agent.is_player:
-                    print(f"\n@{agent.name}: {msg}\n")
-                if "VOTE" in msg:
-                    for k in list(_votes.keys()):
-                        if k in msg:
-                            _votes[k] += 1
-        except KeyboardInterrupt:
-            logger.warn("\nYou quit")
-            sys.exit(1)
 
-        logger.info(f"{_votes=}")
-
-        # This is probably the most disgusting code I've ever written
-        # TODO fix this dumpster fire (when RSI symptoms subside)
-        _killed = None
-        for (k, v) in _votes.items():
-            if v == max(_votes.values()):
-                for i, _a in enumerate(state.agents):
-                    if _a.name == k:
-                        _killed = state.agents.pop(i)
-                        break
-        if _killed is None:
-            _killed = state.agents.pop(0)
-            logger.warn("Vote didn't work, so popped from list")
+        _killed = call_vote(state, conf)
 
         if _killed.is_player:
             _r = input(
@@ -168,6 +140,30 @@ def run_game(num_ai=2, kill_counter=3):
 
     if can_win:
         admin_message(f"You won in {round} rounds!", state)
+
+
+def run_game(num_ai=2, kill_counter=3):
+
+    state = GameState()
+    conf = GameConfig('config.toml')
+
+    print(conf.messages['welcome'])
+
+    # TODO better names (and in conf)
+    _names_pool = ["Eve", "Frank", "Gertrude", "Harriet", "Irene", "John"]
+    _agent_names = []
+    for i in range(num_ai):
+        _name = _names_pool.pop()
+        state.agents[_name] = Agent(_name)
+    state.agents["Alice"] = Agent("Alice", is_player=True)
+
+    logger.debug(f"{state.agents=}")
+
+    _m = conf.messages['intro_announcement']
+    _m += f" The agents in the arena are: {list(state.agents.keys())}"
+    admin_message(_m, state)
+
+    main_game_loop(state, conf, kill_counter)
 
 
 if __name__ == '__main__':

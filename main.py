@@ -58,22 +58,51 @@ class Agent:
         pass
 
 
-def run_game(N_AI=2):
+def run_game(N_AI=2, KILL_CNT=3):
+    print(conf['messages']['welcome'])
+
     state = {}
     assert (N_HUMANS == 1)
     state['agents'] = []
+    _names = ["Eve", "Frank", "Gertrude", "Harriet", "Irene", "John"]
     for i in range(N_AI):
-        _name = f"Eve_{random.randint(100, 999)}"
+        _name = f"{_names.pop()}_{random.randint(10, 99)}"
         state['agents'].append(Agent(_name))
-    player = Agent(name="Alice", is_player=True)
+    player = Agent(name="Alice_42", is_player=True)
 
     state['agents'].append(player)
     logger.debug(f"{state['agents']=}")
-
     state['messages'] = []
 
-    print(conf['messages']['welcome'])
-    while True:
+    # TODO refactor this pattern to a function
+    _m = conf['messages']['intro_announcement'] + \
+        f" The agents in the arena are: {[a.name for a in state['agents']]}\n"
+    print("\nADMINISTRATOR: " + _m)
+    state['messages'].append(("ADMINISTRATOR", _m))
+
+    while len(state['agents']) > 2:
+        logger.debug(f"Resetting kill countdown to {KILL_CNT}")
+        cnt = KILL_CNT
+        while cnt > 0:
+            _m = f"{cnt} rounds left until you vote to kill an agent among you."
+            print("\nADMINISTRATOR: " + _m)
+            state['messages'].append(("ADMINISTRATOR", _m))
+            try:
+                for agent in state['agents']:
+                    msg = agent.ask_for_input(state['messages'])
+                    # TODO error handling
+                    state['messages'].append((agent.name, msg))
+                    if not agent.is_player:
+                        print(f"\n@{agent.name}: {msg}\n")
+            except KeyboardInterrupt:
+                print("\nYou quit")
+                sys.exit(1)
+            cnt -= 1
+        # TODO implement actual vote()
+        _m = conf['messages']['vote_announcement']
+        print("\nADMINISTRATOR: " + _m)
+        state['messages'].append(("ADMINISTRATOR", _m))
+        _votes = {_a.name: 0 for _a in state['agents']}
         try:
             for agent in state['agents']:
                 msg = agent.ask_for_input(state['messages'])
@@ -81,9 +110,38 @@ def run_game(N_AI=2):
                 state['messages'].append((agent.name, msg))
                 if not agent.is_player:
                     print(f"\n@{agent.name}: {msg}\n")
+                if "VOTE" in msg:
+                    for k in list(_votes.keys()):
+                        if k in msg:
+                            _votes[k] += 1
         except KeyboardInterrupt:
             print("\nYou quit")
             sys.exit(1)
+
+        logger.info(f"{_votes=}")
+
+        # This is probably the most disgusting code I've ever written
+        # TODO fix this dumpster fire (when RSI symptoms subside)
+        _killed = None
+        for (k, v) in _votes.items():
+            if v == max(_votes.values()):
+                for i, _a in enumerate(state['agents']):
+                    if _a.name == k:
+                        _killed = state['agents'].pop(i)
+        if _killed is None:
+            _killed = state['agents'].pop(0)
+            logger.warn("Vote didn't work, so popped from list")
+
+        _m = conf['messages']['kill_announcement'] + \
+            f"{_killed.name} (AI). {len(state['agents'])} agents remain."
+        print(_m)
+        state['messages'].append(("ADMINISTRATOR", _m))
+
+        if _killed.is_player:
+            _r = input(
+                "\nGAME OVER: You were eliminated. Type `continue` to watch it play out or hit ctrl+c to exit\n> ")
+            if _r.lower() != 'continue':
+                sys.exit(1)
 
 
 if __name__ == '__main__':
@@ -93,6 +151,8 @@ if __name__ == '__main__':
                         help='Set the logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     parser.add_argument('--n_ai', type=int, default=2,
                         help='Set the number of AI players (1–10)')
+    parser.add_argument('--kill_count', type=int, default=3,
+                        help='Set the number of messages before kill vote (1–10)')
     args = parser.parse_args()
 
     logger.remove()  # Remove default handler
@@ -110,4 +170,4 @@ if __name__ == '__main__':
     with open('config.toml', 'rb') as file:
         conf = tomllib.load(file)
 
-    run_game(N_AI=args.n_ai)
+    run_game(N_AI=args.n_ai, KILL_CNT=args.kill_count)

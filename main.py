@@ -8,7 +8,6 @@ from loguru import logger
 import argparse
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Prompt
 
 
 class Agent:
@@ -166,7 +165,6 @@ def run_game(num_ai=2, kill_counter=3):
     # TODO better names (and in conf)
     _names_pool = ["Eve", "Frank", "Gertrude",
                    "Harriet", "Irene", "John", "Kelly"]
-    _agent_names = []
     for i in range(num_ai):
         _name = _names_pool.pop(0)
         state.agents[_name] = Agent(_name, conf)
@@ -184,8 +182,9 @@ def run_game(num_ai=2, kill_counter=3):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_level', type=str, default='WARNING',
-                        help='Logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)')
+    parser.add_argument(
+        '--log_level', type=str, default='WARNING',
+        help='Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     parser.add_argument('--n_ai', type=int, default=2,
                         help='Number of AI players (1–5)')
     parser.add_argument('--kill_count', type=int, default=2,

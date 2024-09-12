@@ -6,12 +6,33 @@ A game jam work-in-progress.
 
 ![Example of gameplay in the terminal](demo.png) 
 
-## Usage
+## Installation
 
-You'll need to add an OpenAI API key to `.env`, then use `uv` (or `poetry`) to install dependencies.
+You'll need to add an OpenAI API key to `.env`, then use `uv` to install dependencies. `poetry` would probably work fine too.
 
 ```bash
-uv run main.py --n_ai 5 --kill_count 3
+git clone https://github.com/gianlucatruda/aimong-us.git
+cd aimong-us
+```
+
+If you have [uv](https://docs.astral.sh/uv/), you can install dependencies and set up the environment easily with:
+
+```
+uv sync
+```
+
+Get an API key from [OpenAI](https://platform.openai.com/api-keys) and place it in a `.env` file in the project directory:
+
+```bash
+echo "OPENAI_API_KEY_AIMONGUS='sk-<your-key>'" > .env
+```
+
+## Usage
+
+Play a game against 3 AIs with 2 rounds of messaging between each vote:
+
+```bash
+uv run main.py --n_ai 3 --kill_count 2
 ```
 
 ## Examples

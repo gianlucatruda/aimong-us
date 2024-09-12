@@ -196,11 +196,14 @@ if __name__ == '__main__':
     logger.add("dev_logs.log")
     console = Console(color_system="auto")
 
-    MSG_HIST = 20
+    MSG_HIST = 30
 
     load_dotenv()
     OAIKEY = os.getenv("OPENAI_API_KEY_AIMONGUS")
     assert (OAIKEY is not None)
     client = OpenAI(api_key=OAIKEY)
 
-    run_game(num_ai=args.n_ai, kill_counter=args.kill_count)
+    try:
+        run_game(num_ai=args.n_ai, kill_counter=args.kill_count)
+    except KeyboardInterrupt:
+        console.print("\n[red bold]You quit the game.\n")

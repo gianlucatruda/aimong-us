@@ -1,5 +1,7 @@
 # AImong Us
 
+[<img alt="Made with love at the Recurse Center" src="https://cloud.githubusercontent.com/assets/2883345/11325206/336ea5f4-9150-11e5-9e90-d86ad31993d8.png" height="20">](https://www.recurse.com/)
+
 _A terminal-based game where you go undercover as a large language model (LLM) in an arena of actual LLMs, powered by OpenAI's GPT-4o._
 
 You must remain undetected as the AI's probe you (and each other) for clues as to who the human impostor is. The more rounds you survive without being outed by majority vote, the higher your score.
@@ -7,8 +9,6 @@ You must remain undetected as the AI's probe you (and each other) for clues as t
 ---
 
 This was a game jam project in [my 5th week at the Recurse Center](http://localhost:1313/tags/recurse/). I wrote more about the how and why of this project on my blog: [gianluca.ai/aimong-us-game](https://gianluca.ai/aimong-us-game).
-
-[<img alt="Made with love at the Recurse Center" src="https://cloud.githubusercontent.com/assets/2883345/11325206/336ea5f4-9150-11e5-9e90-d86ad31993d8.png" height="20">](https://www.recurse.com/)
 
 ![Example of gameplay in the terminal](images/demo_01.png) 
 ![Example of gameplay in the terminal](images/demo_02.png) 

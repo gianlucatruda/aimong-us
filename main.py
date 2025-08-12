@@ -8,7 +8,9 @@ from loguru import logger
 import argparse
 from rich.console import Console
 from rich.panel import Panel
-
+from langchain.prompts import ChatPromptTemplate,MessagesPlaceholder  # For defining prompts
+from langchain.schema import AIMessage, HumanMessage, SystemMessage  # For defining messages
+from langchain.chat_models import init_chat_model
 
 class Agent:
     def __init__(self, name, conf, is_player=False):
@@ -46,7 +48,6 @@ class Agent:
                 f"[dim]You[/dim] ([bold blue]@{self.name}[/]) > ")
         else:
             req_params = {
-                "model": self.model_params['model'],
                 "messages": [
                     {"role": "system", "content": "Your name is " + self.name},
                     {"role": "system",
@@ -58,12 +59,30 @@ class Agent:
                     *self._rolling_messages_conversion(state.messages)
                 ]
             }
+            chat_history = []
+            system_message = SystemMessage(content=req_params["messages"][0]["content"])
+            
+            prompt = ChatPromptTemplate.from_messages([
+                system_message,
+                MessagesPlaceholder("chat_history"),
+            ])
+            
+            for message in req_params["messages"][1:]:
+                if message["role"] == "system":
+                    chat_history.append(SystemMessage(content=message["content"]))
+                elif message["role"] == "assistant":
+                    chat_history.append(AIMessage(content=message["content"]))
+                elif message["role"] == "user":
+                    chat_history.append(HumanMessage(content=message["content"]))
+            
             logger.debug(f"{req_params=}")
-            r = client.chat.completions.create(
-                **req_params
-            )
-            logger.debug(f"{r=}")
-            _msg = r.choices[0].message.content
+            
+            # Switch to whichever model.
+            #model = init_chat_model("gemini-2.5-pro", model_provider="google_genai")
+            model = init_chat_model("gpt-4o-mini", model_provider="openai")
+            
+            responses = model.invoke(prompt.format(chat_history=chat_history))
+            _msg = responses.content
 
             console.print(f"[bold]@[u]{self.name}[/u]:[/bold] [dim]{_msg}")
 
@@ -199,9 +218,6 @@ if __name__ == '__main__':
     MSG_HIST = 30
 
     load_dotenv()
-    OAIKEY = os.getenv("OPENAI_API_KEY_AIMONGUS")
-    assert (OAIKEY is not None)
-    client = OpenAI(api_key=OAIKEY)
 
     try:
         run_game(num_ai=args.n_ai, kill_counter=args.kill_count)
